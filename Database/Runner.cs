@@ -15,12 +15,12 @@ namespace Runner
             dataJson["student"] = new JObject();
 
             SchoolDatabase data = new SchoolDatabase();
-            JsonReferenceTable<Student, SchoolDatabase> studentTable = data.AddTable<Student,SchoolDatabase>(new StudentTableFactory());
+            RefDatabase<Student, SchoolDatabase> studentTable = data.AddTable<Student,SchoolDatabase>(new StudentTableFactory());
             data.Update(dataJson);
         }
     }
 
-    public class SchoolDatabase: JsonReferenceTable<SchoolDatabase>
+    public class SchoolDatabase: RefDatabase<SchoolDatabase>
     {
         public SchoolDatabase() : base()
         {
@@ -28,7 +28,7 @@ namespace Runner
         }
     }
 
-    public class Student : JsonReferenceTableElement
+    public class Student : RefElement
     {
         public override void LoadRefrences(JObject tableJson)
         {

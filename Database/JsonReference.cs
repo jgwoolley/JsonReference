@@ -5,24 +5,24 @@ using System.Collections.Generic;
 
 namespace JsonReference
 {
-    public abstract class JsonReferenceTable<D> where D: JsonReferenceTable<D>
+    public abstract class RefDatabase<D> where D: RefDatabase<D>
     {
-        private Dictionary<string, JsonReferenceTable<JsonReferenceTableElement, D>> Tables;
+        private Dictionary<string, RefDatabase<RefElement, D>> Tables;
 
-        public JsonReferenceTable()
+        public RefDatabase()
         {
-            Tables = new Dictionary<string, JsonReferenceTable<JsonReferenceTableElement, D>>();
+            Tables = new Dictionary<string, RefDatabase<RefElement, D>>();
         }
 
-        public JsonReferenceTable<E,D> AddTable<E,F>(JsonReferenceTableFactory<E, D> tableFactory) where E : JsonReferenceTableElement
+        public RefDatabase<E,D> AddTable<E,F>(JsonReferenceTableFactory<E, D> tableFactory) where E : RefElement
         {
-            JsonReferenceTable<E,D> table = new JsonReferenceTable<E,D>((D)this, tableFactory);
+            RefDatabase<E,D> table = new RefDatabase<E,D>((D)this, tableFactory);
             return AddTable<E>(table);
         }
 
-        private JsonReferenceTable<E,D> AddTable<E>(JsonReferenceTable<E,D> table) where E : JsonReferenceTableElement
+        private RefDatabase<E,D> AddTable<E>(RefDatabase<E,D> table) where E : RefElement
         {
-            Tables.Add(table.ToString(), (JsonReferenceTable<JsonReferenceTableElement, D>) table);
+            Tables.Add(table.ToString(), (RefDatabase<RefElement, D>) table);
             return table;
         }
 
@@ -40,14 +40,14 @@ namespace JsonReference
             }
         }
 
-        public static explicit operator D(JsonReferenceTable<D> database)
+        public static explicit operator D(RefDatabase<D> database)
         {
             return (D)database;
         }
 
     }
 
-    public class JsonReferenceTable<E,D> where E : JsonReferenceTableElement where D: JsonReferenceTable<D>
+    public class RefDatabase<E,D> where E : RefElement where D: RefDatabase<D>
     {
         private JsonReferenceTableFactory<E,D> TableFactory;
         public D Database { get;  }
@@ -61,7 +61,7 @@ namespace JsonReference
             } 
         }
 
-        public JsonReferenceTable(D database, JsonReferenceTableFactory<E,D> tableFactory)
+        public RefDatabase(D database, JsonReferenceTableFactory<E,D> tableFactory)
         {
             Database = database;
             TableFactory = tableFactory;
@@ -102,19 +102,21 @@ namespace JsonReference
             }
         }
 
-        
-        public static explicit operator JsonReferenceTable<JsonReferenceTableElement, D>(JsonReferenceTable<E, D> table)
+        public static int count = 0;
+
+        public static explicit operator RefDatabase<RefElement, D>(RefDatabase<E, D> table)
         {
-            return (JsonReferenceTable<JsonReferenceTableElement, D>)table;
+            Console.WriteLine(count++);
+            return (RefDatabase<RefElement, D>)table;
         }
         
     }
 
-    public abstract class JsonReferenceTableElement
+    public abstract class RefElement
     {
         public int Id { get;  }
 
-        public JsonReferenceTableElement()
+        public RefElement()
         {
 
         }
@@ -124,7 +126,7 @@ namespace JsonReference
     }
 
 
-    public interface JsonReferenceTableFactory<E,D> : HasName where E : JsonReferenceTableElement where D : JsonReferenceTable<D>
+    public interface JsonReferenceTableFactory<E,D> : HasName where E : RefElement where D : RefDatabase<D>
     {
         public E LoadJson(int i, JObject jToken);
         public void LoadRefrences(E tElement, JObject jToken);
