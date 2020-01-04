@@ -20,7 +20,7 @@ namespace Runner
         }
     }
 
-    public class SchoolDatabase: Database<SchoolDatabase>
+    public class SchoolDatabase: JsonReference<SchoolDatabase>
     {
         public SchoolDatabase() : base()
         {

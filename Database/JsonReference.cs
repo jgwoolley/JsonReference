@@ -5,11 +5,11 @@ using System.Collections.Generic;
 
 namespace JsonReference
 {
-    public abstract class Database<D> where D: Database<D>
+    public abstract class JsonReference<D> where D: JsonReference<D>
     {
         private Dictionary<string, Table<TableElement, D>> Tables;
 
-        public Database()
+        public JsonReference()
         {
             Tables = new Dictionary<string, Table<TableElement, D>>();
         }
@@ -40,14 +40,14 @@ namespace JsonReference
             }
         }
 
-        public static explicit operator D(Database<D> database)
+        public static explicit operator D(JsonReference<D> database)
         {
             return (D)database;
         }
 
     }
 
-    public class Table<E,D> where E : TableElement where D: Database<D>
+    public class Table<E,D> where E : TableElement where D: JsonReference<D>
     {
         private TableFactory<E,D> TableFactory;
         public D Database { get;  }
@@ -124,7 +124,7 @@ namespace JsonReference
     }
 
 
-    public interface TableFactory<E,D> : HasName where E : TableElement where D : Database<D>
+    public interface TableFactory<E,D> : HasName where E : TableElement where D : JsonReference<D>
     {
         public E LoadJson(int i, JObject jToken);
         public void LoadRefrences(E tElement, JObject jToken);
