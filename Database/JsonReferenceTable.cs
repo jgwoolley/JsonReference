@@ -5,24 +5,24 @@ using System.Collections.Generic;
 
 namespace JsonReference
 {
-    public abstract class JsonReference<D> where D: JsonReference<D>
+    public abstract class JsonReferenceTable<D> where D: JsonReferenceTable<D>
     {
-        private Dictionary<string, Table<TableElement, D>> Tables;
+        private Dictionary<string, JsonReferenceTable<JsonReferenceTableElement, D>> Tables;
 
-        public JsonReference()
+        public JsonReferenceTable()
         {
-            Tables = new Dictionary<string, Table<TableElement, D>>();
+            Tables = new Dictionary<string, JsonReferenceTable<JsonReferenceTableElement, D>>();
         }
 
-        public Table<E,D> AddTable<E,F>(TableFactory<E, D> tableFactory) where E : TableElement
+        public JsonReferenceTable<E,D> AddTable<E,F>(JsonReferenceTableFactory<E, D> tableFactory) where E : JsonReferenceTableElement
         {
-            Table<E,D> table = new Table<E,D>((D)this, tableFactory);
+            JsonReferenceTable<E,D> table = new JsonReferenceTable<E,D>((D)this, tableFactory);
             return AddTable<E>(table);
         }
 
-        private Table<E,D> AddTable<E>(Table<E,D> table) where E : TableElement
+        private JsonReferenceTable<E,D> AddTable<E>(JsonReferenceTable<E,D> table) where E : JsonReferenceTableElement
         {
-            Tables.Add(table.ToString(), (Table<TableElement, D>) table);
+            Tables.Add(table.ToString(), (JsonReferenceTable<JsonReferenceTableElement, D>) table);
             return table;
         }
 
@@ -40,16 +40,16 @@ namespace JsonReference
             }
         }
 
-        public static explicit operator D(JsonReference<D> database)
+        public static explicit operator D(JsonReferenceTable<D> database)
         {
             return (D)database;
         }
 
     }
 
-    public class Table<E,D> where E : TableElement where D: JsonReference<D>
+    public class JsonReferenceTable<E,D> where E : JsonReferenceTableElement where D: JsonReferenceTable<D>
     {
-        private TableFactory<E,D> TableFactory;
+        private JsonReferenceTableFactory<E,D> TableFactory;
         public D Database { get;  }
 
         private Dictionary<int, E> Data;
@@ -61,7 +61,7 @@ namespace JsonReference
             } 
         }
 
-        public Table(D database, TableFactory<E,D> tableFactory)
+        public JsonReferenceTable(D database, JsonReferenceTableFactory<E,D> tableFactory)
         {
             Database = database;
             TableFactory = tableFactory;
@@ -103,18 +103,18 @@ namespace JsonReference
         }
 
         
-        public static explicit operator Table<TableElement, D>(Table<E, D> table)
+        public static explicit operator JsonReferenceTable<JsonReferenceTableElement, D>(JsonReferenceTable<E, D> table)
         {
-            return (Table<TableElement, D>)table;
+            return (JsonReferenceTable<JsonReferenceTableElement, D>)table;
         }
         
     }
 
-    public abstract class TableElement
+    public abstract class JsonReferenceTableElement
     {
         public int Id { get;  }
 
-        public TableElement()
+        public JsonReferenceTableElement()
         {
 
         }
@@ -124,7 +124,7 @@ namespace JsonReference
     }
 
 
-    public interface TableFactory<E,D> : HasName where E : TableElement where D : JsonReference<D>
+    public interface JsonReferenceTableFactory<E,D> : HasName where E : JsonReferenceTableElement where D : JsonReferenceTable<D>
     {
         public E LoadJson(int i, JObject jToken);
         public void LoadRefrences(E tElement, JObject jToken);
