@@ -26,11 +26,9 @@ namespace Runner
                 schoolJson[i.ToString()] = new JObject();
             }
 
-            RefDatabase database = new RefDatabase();
-            RefTable<Student> studentTable = database.AddTable<Student>(new StudentFactory());                                         
-            Name studentTableName = studentTable;
-            RefTable<School> schoolTable = database.AddTable<School>(new SchoolFactory());
-            Name schoolTableName = schoolTable;
+            StudentDatabase database = new StudentDatabase();
+            Name studentTableName = database.StudentTable;
+            Name schoolTableName = database.SchoolTable;
 
             JObject dataJson = new JObject();
             dataJson[studentTableName.ToPascalCase()] = studentJson;
@@ -40,7 +38,7 @@ namespace Runner
             database.LoadJson(dataJson);
 
             Console.WriteLine("Writing Students:");
-            foreach (Student student in studentTable)
+            foreach (Student student in database.StudentTable)
             {
                 Console.WriteLine("\t"+student.Id);
             }
@@ -49,7 +47,20 @@ namespace Runner
         }
     }
 
-    public class StudentFactory : IRefTableFactory<Student>
+    public class StudentDatabase: RefDatabase<StudentDatabase>
+    {
+        public RefTable<StudentDatabase, Student> StudentTable { get; }
+        public RefTable<StudentDatabase, School> SchoolTable { get; }
+
+        public StudentDatabase(): base()
+        {
+            StudentTable = this.AddTable(new StudentFactory());
+            SchoolTable = this.AddTable(new SchoolFactory());
+
+        }
+    }
+
+    public class StudentFactory : IRefTableFactory<StudentDatabase,Student>
     {
         public string[] GetName()
         {
@@ -62,8 +73,10 @@ namespace Runner
         }
     }
 
-    public class Student : RefElement
+    public class Student : RefElement<StudentDatabase>
     {
+        public School School { get; set; }
+
         public Student(int id, JObject elementJson) : base(id, elementJson)
         {
             
@@ -71,12 +84,12 @@ namespace Runner
 
         public override void LoadReference(JObject elementJson)
         {
-            
+            this.School = null;
         }
 
     }
 
-    public class SchoolFactory : IRefTableFactory<School> {
+    public class SchoolFactory : IRefTableFactory<StudentDatabase,School> {
         public string[] GetName()
         {
             return new string[] { "School", "Table" };
@@ -88,7 +101,7 @@ namespace Runner
         }
     }
 
-    public class School: RefElement
+    public class School: RefElement<StudentDatabase>
     {
         public School(int id, JObject elementJson) : base(id, elementJson)
         {

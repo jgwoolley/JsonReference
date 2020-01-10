@@ -6,25 +6,25 @@ using System.Text;
 
 namespace JsonReference
 {
-    public class RefDatabase: IEnumerable<IRefTable<RefElement>>
+    public abstract class RefDatabase<D>: IEnumerable<IRefTable<D,RefElement<D>>> where D : RefDatabase<D>
     {
-        private Dictionary<string, IRefTable<RefElement>> Tables;
+        private Dictionary<string, IRefTable<D, RefElement<D>>> Tables;
 
         public RefDatabase()
         {
-            Tables = new Dictionary<string, IRefTable<RefElement>>();
+            Tables = new Dictionary<string, IRefTable<D,RefElement<D>>>();
         }
 
-        public IRefTable<RefElement> this[string key] { get {
+        public IRefTable<D,RefElement<D>> this[string key] { get {
                 return Tables[key];
             }
         }
 
-        public RefTable<E> AddTable<E>(IRefTableFactory<E> tableFactory) where E : RefElement
+        public RefTable<D, E> AddTable<E>(IRefTableFactory<D,E> tableFactory) where E : RefElement<D>
         {
-            RefTable<E> table = new RefTable<E>(this, tableFactory);
+            RefTable<D,E> table = new RefTable<D,E>(this, tableFactory);
             Name name = table;
-            Tables.Add(name.ToPascalCase(), (IRefTable<RefElement>) table);
+            Tables.Add(name.ToPascalCase(), (IRefTable<D, RefElement<D>>) table);
             return table;
         }
 
@@ -41,7 +41,7 @@ namespace JsonReference
                 Tables[tableName].LoadJson(tableJson);
             }
 
-            foreach (IRefTable<RefElement> table in this)
+            foreach (IRefTable<D, RefElement<D>> table in this)
             {
                 
             }
@@ -52,19 +52,19 @@ namespace JsonReference
             return Tables.Values.GetEnumerator();
         }
 
-        public IEnumerator<IRefTable<RefElement>> GetEnumerator()
+        public IEnumerator<IRefTable<D,RefElement<D>>> GetEnumerator()
         {
             return Tables.Values.GetEnumerator();
         }
 
     }
 
-    public sealed class RefTable<E> : IRefTable<E>, IEnumerable<E> where E : RefElement
+    public sealed class RefTable<D,E> : IRefTable<D,E>, IEnumerable<E> where E : IRefElement<D> where D : RefDatabase<D>
     {
-        private RefDatabase Database { get; }
+        private RefDatabase<D> Database { get; }
         private Dictionary<int, E> Elements;
-        private IRefTableFactory<E> TableFactory;
-        public RefTable(RefDatabase database, IRefTableFactory<E> tableFactory)
+        private IRefTableFactory<D,E> TableFactory;
+        public RefTable(RefDatabase<D> database, IRefTableFactory<D,E> tableFactory)
         {
             this.Database = database;
             this.TableFactory = tableFactory;
@@ -121,17 +121,18 @@ namespace JsonReference
 
     }
 
-    public interface IRefTable<out E>: IRefTableFactory<E> where E : RefElement {
+    public interface IRefTable<out D, out E>: IRefTableFactory<D,E> where E : IRefElement<D> where D: RefDatabase<D>
+    {
         public void LoadJson(JObject tableJson);
 
     }
 
-    public interface IRefTableFactory<out E> : Name where E : RefElement
+    public interface IRefTableFactory<out D, out E> : Name where E : IRefElement<D> where D : RefDatabase<D>
     {
         public E LoadElement(int id, JObject elementJson);
     }
 
-    public abstract class RefElement
+    public abstract class RefElement<D>: IRefElement<D> where D: RefDatabase<D>
     {
         public int Id { get; }
 
@@ -141,6 +142,13 @@ namespace JsonReference
 
         public abstract void LoadReference(JObject elementJson);
 
+    }
+
+    public interface IRefElement<out D> where D: RefDatabase<D>
+    {
+        public int Id { get; }
+
+        public void LoadReference(JObject elementJson);
     }
 
     public interface Name
