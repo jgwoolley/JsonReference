@@ -11,51 +11,93 @@ namespace Runner
 
         static void Main(string[] args)
         {
-            JObject dataJson = new JObject();
-            dataJson["student"] = new JObject();
+            JObject studentJson = new JObject();
+            for (int i = 0; i < 10; i++)
+            {
+                JObject studentObject = new JObject();
+                studentObject["school"] = i % 2;
+                studentJson[i.ToString()] = studentObject;
 
-            SchoolDatabase data = new SchoolDatabase();
-            RefDatabase<Student, SchoolDatabase> studentTable = data.AddTable<Student,SchoolDatabase>(new StudentTableFactory());
-            data.Update(dataJson);
+            }
+
+            JObject schoolJson = new JObject();
+            for (int i = 0; i < 2; i++)
+            {
+                schoolJson[i.ToString()] = new JObject();
+            }
+
+            RefDatabase database = new RefDatabase();
+            RefTable<Student> studentTable = database.AddTable<Student>(new StudentFactory());                                         
+            Name studentTableName = studentTable;
+            RefTable<School> schoolTable = database.AddTable<School>(new SchoolFactory());
+            Name schoolTableName = schoolTable;
+
+            JObject dataJson = new JObject();
+            dataJson[studentTableName.ToPascalCase()] = studentJson;
+            dataJson[schoolTableName.ToPascalCase()] = schoolJson;
+
+            Console.WriteLine(dataJson);
+            database.LoadJson(dataJson);
+
+            Console.WriteLine("Writing Students:");
+            foreach (Student student in studentTable)
+            {
+                Console.WriteLine("\t"+student.Id);
+            }
+            Console.WriteLine("Finished Writing Students.");
+
         }
     }
 
-    public class SchoolDatabase: RefDatabase<SchoolDatabase>
+    public class StudentFactory : IRefTableFactory<Student>
     {
-        public SchoolDatabase() : base()
+        public string[] GetName()
         {
+            return new string[] { "Student", "Table" };
+        }
 
+        public Student LoadElement(int id, JObject elementJson)
+        {
+            return new Student(id, elementJson);
         }
     }
 
     public class Student : RefElement
     {
-        public override void LoadRefrences(JObject tableJson)
+        public Student(int id, JObject elementJson) : base(id, elementJson)
         {
-            throw new NotImplementedException();
+            
+        }
+
+        public override void LoadReference(JObject elementJson)
+        {
+            
+        }
+
+    }
+
+    public class SchoolFactory : IRefTableFactory<School> {
+        public string[] GetName()
+        {
+            return new string[] { "School", "Table" };
+        }
+
+        public School LoadElement(int id, JObject elementJson)
+        {
+            return new School(id, elementJson);
         }
     }
 
-    public class StudentTableFactory : JsonReferenceTableFactory<Student, SchoolDatabase>
+    public class School: RefElement
     {
-        public StudentTableFactory()
+        public School(int id, JObject elementJson) : base(id, elementJson)
         {
 
         }
 
-        public string GetName()
+        public override void LoadReference(JObject elementJson)
         {
-            return "Student";
-        }
 
-        public Student LoadJson(int i, JObject jToken)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void LoadRefrences(Student tElement, JObject jToken)
-        {
-            throw new NotImplementedException();
         }
     }
 }
