@@ -6,7 +6,7 @@ using System.Text;
 
 namespace JsonReference
 {
-    public abstract class RefDatabase<D>: IEnumerable<IRefTable<D,RefElement<D>>> where D : RefDatabase<D>
+    public abstract class RefDatabase<D>: IEnumerable<IRefTable<D,RefElement<D>>>, IHasJson<JObject> where D : RefDatabase<D>
     {
         private Dictionary<string, IRefTable<D, RefElement<D>>> Tables;
 
@@ -20,10 +20,10 @@ namespace JsonReference
             }
         }
 
-        public RefTable<D, E> AddTable<E>(IRefTableFactory<D,E> tableFactory) where E : RefElement<D>
+        public RefTable<D, E> AddTable<E>(D database, IRefTableFactory<D,E> tableFactory) where E : RefElement<D>
         {
-            RefTable<D,E> table = new RefTable<D,E>(this, tableFactory);
-            Name name = table;
+            RefTable<D,E> table = new RefTable<D,E>(database, tableFactory);
+            IHasName name = table;
             Tables.Add(name.ToPascalCase(), (IRefTable<D, RefElement<D>>) table);
             return table;
         }
@@ -43,7 +43,9 @@ namespace JsonReference
 
             foreach (IRefTable<D, RefElement<D>> table in this)
             {
-                
+                String tableName = ((IHasName)table).ToPascalCase();
+                JObject tableJson  = (JObject) databaseJson[tableName];
+                table.LoadReferences(tableJson);
             }
         }
 
@@ -57,14 +59,24 @@ namespace JsonReference
             return Tables.Values.GetEnumerator();
         }
 
+        public JObject ToJson()
+        {
+            JObject databaseJson = new JObject();
+            foreach (KeyValuePair<string, IRefTable<D, RefElement<D>>> pair in Tables)
+            {
+                databaseJson[pair.Key] = pair.Value.ToJson();
+            }
+
+            return databaseJson;
+        }
     }
 
-    public sealed class RefTable<D,E> : IRefTable<D,E>, IEnumerable<E> where E : IRefElement<D> where D : RefDatabase<D>
+    public sealed class RefTable<D,E> : IRefTable<D,E> where E : IRefElement<D> where D : RefDatabase<D>
     {
-        private RefDatabase<D> Database { get; }
+        public D Database { get; }
         private Dictionary<int, E> Elements;
         private IRefTableFactory<D,E> TableFactory;
-        public RefTable(RefDatabase<D> database, IRefTableFactory<D,E> tableFactory)
+        public RefTable(D database, IRefTableFactory<D,E> tableFactory)
         {
             this.Database = database;
             this.TableFactory = tableFactory;
@@ -78,14 +90,41 @@ namespace JsonReference
                 return Elements[id];
             }
         }
-        
+
+        public int getNextId(int i)
+        {
+            if (Elements.ContainsKey(i))
+            {
+                return getNextId(i+1);
+            }
+            return i;
+        }
+
+        public int getNextId()
+        {
+            return getNextId(0);
+        }
+
+        public List<int> getNextIds(int size)
+        {
+            List<int> list = new List<int>();
+            int curr = 0;
+            for (int index = 0; index < size; index++)
+            {
+                curr = getNextId(curr+1);
+                list.Add(curr);
+            }
+
+            return list;
+        }
+
         public void LoadJson(JObject tableJson)
         {
             foreach(KeyValuePair<string, JToken> elementPair in tableJson)
             {
                 int id = int.Parse(elementPair.Key);
                 JObject elementJson = (JObject) elementPair.Value;
-                Elements[id] = LoadElement(id,elementJson);
+                Elements[id] = LoadElement(Database,id, elementJson);
             }
         }
 
@@ -104,9 +143,9 @@ namespace JsonReference
             return TableFactory.GetName();
         }
 
-        public E LoadElement(int id, JObject elementJson)
+        public E LoadElement(D database, int id, JObject elementJson)
         {
-            return TableFactory.LoadElement(id, elementJson);
+            return TableFactory.LoadElement(database, id, elementJson);
         }
 
         public IEnumerator<E> GetEnumerator()
@@ -119,48 +158,78 @@ namespace JsonReference
             return Elements.Values.GetEnumerator();
         }
 
+        public JObject ToJson()
+        {
+            JObject tableJson = new JObject();
+            foreach (KeyValuePair<int,E> pair in Elements)
+            {
+                tableJson[pair.Key.ToString()] = pair.Value.ToJson();
+            }
+
+            return tableJson;
+        }
+
+        public void LoadReferences(JObject tableJson)
+        {
+            foreach (E element in Elements.Values)
+            {
+                int id = element.Id;
+                JObject elementJson = (JObject)tableJson[id.ToString()];
+                element.LoadReference(elementJson);
+            }
+        }
     }
 
-    public interface IRefTable<out D, out E>: IRefTableFactory<D,E> where E : IRefElement<D> where D: RefDatabase<D>
+    public interface IRefTable<D, out E>: IRefTableFactory<D,E>, IHasJson<JObject>, IEnumerable<E> where E : IRefElement<D> where D: RefDatabase<D>
     {
+        public D Database { get; }
+
+        public List<int> getNextIds(int size);
+
+        public int getNextId();
+
         public void LoadJson(JObject tableJson);
-
+        public void LoadReferences(JObject tableJson);
     }
 
-    public interface IRefTableFactory<out D, out E> : Name where E : IRefElement<D> where D : RefDatabase<D>
+    public interface IRefTableFactory<D, out E> : IHasName where E : IRefElement<D> where D : RefDatabase<D>
     {
-        public E LoadElement(int id, JObject elementJson);
+        public E LoadElement(D database, int id, JObject elementJson);
     }
 
     public abstract class RefElement<D>: IRefElement<D> where D: RefDatabase<D>
     {
+        public D Database { get;  }
+
         public int Id { get; }
 
-        public RefElement(int id, JObject elementJson){
+        public RefElement(D database, int id, JObject elementJson){
+            this.Database = database;
             this.Id = id;
         }
 
         public abstract void LoadReference(JObject elementJson);
 
+        public abstract JObject ToJson();
     }
 
-    public interface IRefElement<out D> where D: RefDatabase<D>
+    public interface IRefElement<out D>: IHasJson<JObject> where D: RefDatabase<D>
     {
         public int Id { get; }
 
         public void LoadReference(JObject elementJson);
     }
 
-    public interface Name
+    public interface IHasName
     {
         public string[] GetName();
 
-        public virtual string ToPascalCase()
+        public string ToPascalCase()
         {
             return ToPascalCase("");
         }
 
-        public virtual string ToPascalCase(String seperator)
+        public string ToPascalCase(String seperator)
         {
             string[] name = GetName();
             if (name.Length == 0)
@@ -188,11 +257,11 @@ namespace JsonReference
             return buff.ToString();
         }
 
-        public virtual string ToCamelCase() {
+        public string ToCamelCase() {
             return ToCamelCase("");
         }
 
-        public virtual string ToCamelCase(String seperator)
+        public string ToCamelCase(String seperator)
         {
             string[] name = GetName();
             if (name.Length == 0)
@@ -220,6 +289,11 @@ namespace JsonReference
 
             return buff.ToString();
         }
+    }
+
+    public interface IHasJson<J> where J: JToken
+    {
+        public J ToJson();
     }
 
 }

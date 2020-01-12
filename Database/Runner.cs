@@ -4,13 +4,15 @@ using System.Collections.Generic;
 using System.Text;
 using JsonReference;
 using Newtonsoft.Json.Linq;
+using System.CodeDom;
 
-namespace Runner
+namespace TestRefDatabase
 {
     public class Runner{
 
         static void Main(string[] args)
         {
+            Console.WriteLine("studentJson create:");
             JObject studentJson = new JObject();
             for (int i = 0; i < 10; i++)
             {
@@ -20,29 +22,36 @@ namespace Runner
 
             }
 
+            for (int i = 13; i < 16; i++)
+            {
+                JObject studentObject = new JObject();
+                studentObject["school"] = i % 2;
+                studentJson[i.ToString()] = studentObject;
+            }
+
+                Console.WriteLine("schoolJson create:");
             JObject schoolJson = new JObject();
             for (int i = 0; i < 2; i++)
             {
                 schoolJson[i.ToString()] = new JObject();
             }
 
+            Console.WriteLine("StudentDatabase create:");
             StudentDatabase database = new StudentDatabase();
-            Name studentTableName = database.StudentTable;
-            Name schoolTableName = database.SchoolTable;
+            IHasName studentTableName = database.StudentTable;
+            IHasName schoolTableName = database.SchoolTable;
 
             JObject dataJson = new JObject();
             dataJson[studentTableName.ToPascalCase()] = studentJson;
             dataJson[schoolTableName.ToPascalCase()] = schoolJson;
 
-            Console.WriteLine(dataJson);
+            Console.WriteLine("Load Json");
             database.LoadJson(dataJson);
 
-            Console.WriteLine("Writing Students:");
-            foreach (Student student in database.StudentTable)
-            {
-                Console.WriteLine("\t"+student.Id);
-            }
-            Console.WriteLine("Finished Writing Students.");
+            Console.WriteLine("Writing Students/Schools:");
+            Console.WriteLine(database.ToJson());
+
+            database.StudentTable.getNextIds(4).ForEach(Console.WriteLine);
 
         }
     }
@@ -54,9 +63,8 @@ namespace Runner
 
         public StudentDatabase(): base()
         {
-            StudentTable = this.AddTable(new StudentFactory());
-            SchoolTable = this.AddTable(new SchoolFactory());
-
+            StudentTable = this.AddTable(this, new StudentFactory());
+            SchoolTable = this.AddTable(this, new SchoolFactory());
         }
     }
 
@@ -67,9 +75,9 @@ namespace Runner
             return new string[] { "Student", "Table" };
         }
 
-        public Student LoadElement(int id, JObject elementJson)
+        public Student LoadElement(StudentDatabase database, int id, JObject elementJson)
         {
-            return new Student(id, elementJson);
+            return new Student(database, id, elementJson);
         }
     }
 
@@ -77,14 +85,25 @@ namespace Runner
     {
         public School School { get; set; }
 
-        public Student(int id, JObject elementJson) : base(id, elementJson)
+        public Student(StudentDatabase database, int id, JObject elementJson) : base(database, id, elementJson)
         {
             
         }
 
         public override void LoadReference(JObject elementJson)
         {
-            this.School = null;
+            this.School = this.Database.SchoolTable[(int)elementJson["school"]];
+            if (this.School == null) throw new Exception();
+        }
+
+        public override JObject ToJson()
+        {
+            JObject studentJson = new JObject();
+
+            int schoolId = this.School.Id;
+            studentJson["school"] = schoolId;
+
+            return studentJson;
         }
 
     }
@@ -95,22 +114,27 @@ namespace Runner
             return new string[] { "School", "Table" };
         }
 
-        public School LoadElement(int id, JObject elementJson)
+        public School LoadElement(StudentDatabase database, int id, JObject elementJson)
         {
-            return new School(id, elementJson);
+            return new School(database, id, elementJson);
         }
     }
 
     public class School: RefElement<StudentDatabase>
     {
-        public School(int id, JObject elementJson) : base(id, elementJson)
+        public School(StudentDatabase database, int id, JObject elementJson) : base(database,id, elementJson)
         {
-
+            
         }
 
         public override void LoadReference(JObject elementJson)
         {
 
+        }
+
+        public override JObject ToJson()
+        {
+            return new JObject();
         }
     }
 }
