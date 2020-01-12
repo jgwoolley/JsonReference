@@ -210,7 +210,14 @@ namespace JsonReference
 
         public abstract void LoadReference(JObject elementJson);
 
-        public abstract JObject ToJson();
+        public JObject ToJson()
+        {
+            JObject tableJson = new JObject();
+            CreateJson(tableJson);
+            return tableJson;
+        }
+
+        public abstract void CreateJson(JObject tableJson);
     }
 
     public interface IRefElement<out D>: IHasJson<JObject> where D: RefDatabase<D>

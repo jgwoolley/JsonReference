@@ -96,14 +96,10 @@ namespace TestRefDatabase
             if (this.School == null) throw new Exception();
         }
 
-        public override JObject ToJson()
+        public override void CreateJson(JObject studentJson)
         {
-            JObject studentJson = new JObject();
-
             int schoolId = this.School.Id;
             studentJson["school"] = schoolId;
-
-            return studentJson;
         }
 
     }
@@ -132,9 +128,10 @@ namespace TestRefDatabase
 
         }
 
-        public override JObject ToJson()
+
+        public override void CreateJson(JObject tableJson)
         {
-            return new JObject();
+
         }
     }
 }
